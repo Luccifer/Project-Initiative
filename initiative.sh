@@ -5,7 +5,7 @@ export DEBIAN_FRONTEND=noninteractive
 #----------------server ip getter-------------------#
 wget https://rawgit.com/rsp/scripts/master/internalip
 chmod a+x internalip
-serverip = $(internalip)
+serverip = "$(internalip)"
 
 #------supress userinteraction in mail, slapd--------#
 echo "postfix postfix/mailname string $serverip" | debconf-set-selections
