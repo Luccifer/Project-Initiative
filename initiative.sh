@@ -1,4 +1,6 @@
 #!/bin/bash
+export DEBIAN_FRONTEND=noninteractive
+
 echo Activating the Initiative protocols Heses
 
 sudo add-apt-repository -y ppa:linrunner/tlp
