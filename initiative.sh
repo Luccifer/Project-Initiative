@@ -19,6 +19,7 @@ echo Activating the Initiative protocols Hades
 
 sudo add-apt-repository -q -y --force-yes ppa:linrunner/tlp
 echo "deb https://packagecloud.io/grafana/stable/debian/ stretch main" | sudo tee -a /etc/apt/sources.list #grafana
+GET https://s3-eu-west-1.amazonaws.com/deb.robustperception.io/41EFC99D.gpg | apt-key add -
 curl https://packagecloud.io/gpg.key | sudo apt-key add - #grafana
 sudo apt-get update -q -y
 /bin/bash -c "$(curl -sL https://git.io/vokNn)" #apt-fast install
@@ -28,7 +29,50 @@ sudo tlp start
 echo Activating the Initiative protocols Gaia
 wget https://github.com/robbyrussell/oh-my-zsh/raw/master/tools/install.sh -O - | zsh #zsh install
 
-sudo apt-fast install -q -y --force-yes grafana apt-transport-https slapd ldap-utils sendmail mc uwsgi uwsgi-plugin-python nginx postgresql libpq-dev python-psycopg2
+sudo apt-fast install -q -y --force-yes grafana apt-transport-https slapd ldap-utils sendmail mc uwsgi uwsgi-plugin-python nginx postgresql libpq-dev python-psycopg2 prometheus prometheus-node-exporter prometheus-pushgateway prometheus-alertmanager cadvisor apache2-utils
+
+sudo useradd --no-create-home --shell /bin/false prometheus
+sudo useradd --no-create-home --shell /bin/false node_exporter
+sudo mkdir /etc/prometheus
+sudo mkdir /var/lib/prometheus
+sudo chown prometheus:prometheus /etc/prometheus
+sudo chown prometheus:prometheus /var/lib/prometheus
+echo "global:
+scrape_interval: 15s
+scrape_configs:
+- job_name: 'prometheus'
+scrape_interval: 5s
+static_configs:
+- targets: ['localhost:9090']
+- job_name: 'node_exporter'
+scrape_interval: 5s
+static_configs:
+- targets: ['localhost:9100']" > /etc/prometheus/prometheus.yml
+sudo chown prometheus:prometheus /etc/prometheus/prometheus.yml
+sudo -u prometheus /usr/local/bin/prometheus \
+-config.file /etc/prometheus/prometheus.yml \
+-storage.local.path /var/lib/prometheus/
+sudo systemctl enable prometheus
+echo "Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+ExecStart=/usr/local/bin/node_exporter
+[Install]
+WantedBy=multi-user.target" > /etc/systemd/system/node_exporter.service
+sudo systemctl daemon-reload
+sudo systemctl start node_exporter
+sudo systemctl enable node_exporter
+sudo systemctl restart prometheus
+
+sudo htpasswd -c /etc/nginx/.htpasswd 8host
+sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/prometheus
+sudo systemctl reload nginx
+
 sudo service grafana-server start
 
 sudo update-rc.d grafana-server defaults
